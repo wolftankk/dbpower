@@ -1,6 +1,6 @@
 if (typeof WowshellPower){
 	var WowshellPower = new function(){
-		/*
+		/**
 		 * 通用函数集
 		 */
 		function argumentsToArray(args){
@@ -79,8 +79,7 @@ if (typeof WowshellPower){
 				}
 			}
 			e._target = e.target ? e.target : e.srcElement;
-			e._wheelDelta = e.wheelDelta ? e.wheelDelta : -e.detail;
-			
+			e._wheelDelta = e.wheelDelta ? e.wheelDelta : -e.detail;			
 			return e
 		}
 		
@@ -88,8 +87,11 @@ if (typeof WowshellPower){
 		function ge(id){
 			return document.getElementById(id);
 		}
-		function getTagName(tag){
-			return document.getElementsByTagName(tag);
+		/**
+		 * @return {Node}
+		 */
+		function getTagName(parent, tag){
+			return parent.getElementsByTagName(tag);
 		}
 		function de(child){
 			child.parentNode.removeChild(child);
@@ -104,8 +106,16 @@ if (typeof WowshellPower){
 				array_apply(child, parent.appendChild.bindContext(parent));
 				return child;
 			}else{
-				return child.appendChild(parent);
+				return parent.appendChild(child);
 			}			
+		}
+		/**
+		 * insert first
+		 * @param {Node} parent
+		 * @param {Node} child
+		 */
+		function aef(parent, child){
+			return parent.insertBefore(child, parent.firstChild);
 		}
 		//create element
 		function ce(tag, options, parent){
@@ -115,7 +125,7 @@ if (typeof WowshellPower){
 				copyObjectRecursion(element, options);
 			}
 			if (parent){
-				ae(element, parent)
+				ae(parent, element)
 			}
 			return element
 		}
@@ -145,6 +155,28 @@ if (typeof WowshellPower){
 				}else{
 					target[key] = source[key];
 				}
+			}
+		}
+		
+		function getWindowSize(){
+			var winWidth = 0, winHeight = 0;
+			if (document.documentElement && (document.documentElement.clientHeight || document.documentElement.clientWidth)){
+				winWidth = document.documentElement.clientWidth;
+				winHeight = document.documentElement.clientHeight;
+			}else{
+				if (document.body && (document.body.clientHeight || document.body.clientWidth)){
+					winWidth = document.body.clientWidth;
+					winHeight = document.body.clientHeight;
+				}else{
+					if (typeof window.innerWidth == "number"){
+						winWidth = window.innerWidth;
+						winHeight = window.innerHeight;
+					}
+				}
+			}			
+			return {
+				w : winWidth,
+				h : winHeight
 			}
 		}
 		
@@ -207,9 +239,20 @@ if (typeof WowshellPower){
 		    pet: 9,
 		    achievement: 10
 		}
+		function g_ajaxIshRequest(url){
+			var head = getTagName(document, "head")[0];
+			ae(head, ce("script",{
+				type: "text/javascript",
+				src: url
+			}));
+		}
 		
 		//tooltip
-		var Tooltip = {
+		var Tooltip = {			
+			/**
+			 * 创建一个tooltip element
+			 * @return {Node} root
+			 */
 			create: function(html){
 				var root = ce("div"),
 				table = ce("table"),
@@ -221,13 +264,214 @@ if (typeof WowshellPower){
 				bleft = ce("th"),
 				bright = ce("th");				
 				root.className = "wowshell_tooltip";				
-				toptr.style.backgroundPosition = "top right";
+				tright.style.backgroundPosition = "top right";
 				bleft.style.backgroundPosition = "bottom left";
 				bright.style.backgroundPosition = "bottom right";
 				if (html){
-					tleft.innerHTML = html
+					tleft.innerHTML = html;
+				}
+				ae(toptr, tleft);
+				ae(toptr, tright);
+				ae(tbody, toptr);
+				ae(bottomtr, bleft);
+				ae(bottomtr, bright);
+				ae(tbody, bottomtr);
+				ae(table, tbody);								
+				Tooltip.icon = ce("p");
+				Tooltip.icon.style.visibility = "hidden";
+				ae(Tooltip.icon, ce("div"));
+				ae(root, Tooltip.icon);
+				ae(root, table);
+				return root
+			},
+			/**
+			 * @param {Node} tooltip
+			 */
+			fix: function(tooltip, isShrink, isVisible){
+				var tooltipTable = getTagName(tooltip, "table")[0];
+				var tooltipTd = getTagName(tooltip, "td")[0];
+				var TooltipTdChilds = tooltipTd.childNodes;
+				if (TooltipTdChilds.length >= 2 && TooltipTdChilds[0].nodeName == "TABLE" && TooltipTdChilds[1].nodeName == "TABLE"){
+					TooltipTdChilds[0].style.whiteSpace = "nowrap";
+					var adjustWidth;
+					if (TooltipTdChilds[1].offsetWidth > 300){
+						adjustWidth = Math.max(300, TooltipTdChilds[0].offsetWidth) + 20;
+					}else{
+						adjustWidth = Math.max(TooltipTdChilds[0].offsetWidth, TooltipTdChilds[1].offsetWidth) + 20;
+					}
+					if (adjustWidth > 20){
+						tooltip.style.width = adjustWidth+"px";
+						TooltipTdChilds[0].style.width = TooltipTdChilds[1].style.width = "100%";
+						if (!isShrink && tooltip.offsetHeight > document.body.clientHeight){
+							tooltip.className = "shrink";//缩放
+						}
+					}
+				}
+				if (isVisible){
+					tooltip.style.visibility = "visible";
+				}
+			},
+			fixSafe:function(){},
+			append:function(){
+				
+			},
+			prepare:function(){
+				if (Tooltip.tooltip){
+					return;
+				}
+				var layers;
+				if (!ge("layers")){
+					layers = ce("div");
+					layers.id = "layers";
+					aef(document.body, layers);
+				}else{
+					layers = ge("layers");
+				}
+				var tooltip = Tooltip.create();
+				tooltip.style.position = "absolute";
+				tooltip.style.left = tooltip.style.top = "-2323px";
+				ae(layers, tooltip);
+				Tooltip.tooltip = tooltip;
+				Tooltip.tooltipTable = 	getTagName(tooltip, "table")[0];
+				Tooltip.tooltipTd = getTagName(tooltip, "td")[0];
+				if (Brower.ie6){
+					tooltip = ce("iframe");
+					tooltip.src = "javascript:0;";
+					tooltip.frameBorder = 0;
+					ae(layers, tooltip);
+					Tooltip.iframe = tooltip;
+				}
+			},
+			set:function(html){
+				var tip = Tooltip.tooltip;
+				tip.style.width = "550px";
+				tip.style.left = "-2323px";
+				tip.style.top = "-2323px";				
+				Tooltip.tooltipTd.innerHTML = html;
+				tip.style.display = "";
+				Tooltip.fix(tip, 0, 0);
+			},
+			moveTests:[[null, null], [null, false], [false, null], [false, false]],
+			move:function(posX, posY, width, height, fixWidth, fixHeight){
+				if (!Tooltip.tooltipTable){
+					return;
+				}
+				var tooltip = Tooltip.tooltip,
+				tipTableWidth = Tooltip.tooltipTable.offsetWidth,
+				tipTableHeight = Tooltip.tooltipTable.offsetHeight;
+				tooltip.style.width = tipTableWidth + "px";
+				//movetest
+				var testData, tipAttr;
+				for (var g = 0, len = Tooltip.moveTests.length; g < len; ++g){
+					testData = Tooltip.moveTests[g];
+					tipAttr = Tooltip.moveTest(posX, posY, width, height, fixWidth, fixHeight, testData[0], testData[1]);
+				}
+				tooltip.style.left = tipAttr.posX + "px";
+				tooltip.style.top = tipAttr.posY + "px";
+				tooltip.style.visibility = "visible";
+				if (Brower.ie6 && Tooltip.iframe) {
+					var iframe = Tooltip.iframe;
+					iframe.style.left = tipAttr.posX + "px";
+					iframe.style.top = tipAttr.posY + "px";
+					iframe.style.width = tipTableWidth + "px";
+					iframe.style.height = tipTableHeight + "px";
+					iframe.style.display = "";
+					iframe.style.visibility = "visible";
+				}
+			},
+			moveTest:function(posX, posY, width, height, fixWidth, fixHeight, abswidth, absheight){
+				var oldPosX = posX,
+					oldPosY = posY,
+					tooltip = Tooltip.tooltip,
+					tipTableWidth = Tooltip.tooltipTable.offsetWidth,
+					tipTableHeight = Tooltip.tooltipTable.offsetHeight,
+						windowSize = getWindowSize(),
+						scrollInfo = getScroll(),
+					windowWidth = windowSize.w,
+					windowHeight = windowSize.h,
+					scrollX = scrollInfo.x,
+					scrollY = scrollInfo.y,
+					relwidth = scrollX + windowWidth,
+					relheight = scrollY + windowHeight;
+					
+				if (abswidth == null){
+					abswidth = (posX + width + tipTableWidth <= relwidth);
+				}
+				if (absheight == null){
+					absheight = (posY - tipTableHeight >= relheight)
 				}
 				
+				posX += width + fixWidth
+				posY -= tipTableHeight + fixHeight
+				
+				if (posX < scrollX){
+					posX = scrollX;
+				}else{
+					if (posX + tipTableWidth > relwidth){
+						posX = relwidth - tipTableWidth;
+					}
+				}
+					
+				if (posY < scrollY){
+					posY = scrollY;
+				}else{
+					if (posY + tipTableHeight > relheight){
+						posY = Math.max(scrollY, relheight - tipTableHeight);
+					}
+				}
+
+				if (Tooltip.iconVisible){
+					if (oldPosX >= posX - 48 && oldPosX <= posX && oldPosY >= posY-4 && oldPosY <= posY + 48){
+						posY -= 48 - (oldPosY - posY);
+					}
+				}
+				return {
+					posX: posX,
+					posY: posY,
+					tipTblWidth: tipTableWidth,
+					tipTblHeight: tipTableHeight
+				}
+			},
+			show:function(target, html, fixWidth, fixHeight, className){
+				
+			},
+			showAtCursor:function(){
+				
+			},
+			showAtXY:function(html, posX, posY, fixWidth, fixHeight){
+				if (Tooltip.disabled){
+					return;
+				}
+				Tooltip.prepare();
+				Tooltip.set(html);
+				Tooltip.move(posX, posY, 0, 0, fixWidth, fixHeight);
+			},
+			cursorUpdate:function(){
+				
+			},
+			hide:function(){
+				if (Tooltip.tooltip){
+					var tooltip = Tooltip.tooltip;
+					tooltip.style.visibility = "hidden";
+					tooltip.style.display = "none";
+					Tooltip.tooltipTable.className = "";
+					if (Brower.ie6){
+						Tooltip.iframe.style.display = "none";
+					}
+					Tooltip.setIcon(null)
+				}
+			},
+			setIcon:function(iconName){
+				Tooltip.prepare();
+				var tipIcon = Tooltip.icon;
+				if (iconName){
+					tipIcon.style.backgroundImage = "url(http://db.wowshell.com/images/icons/medium/"+iconName.toLowerCase()+".jpg)";
+					tipIcon.style.visibility = "visible";
+				}else{
+					tipIcon.style.backgroundImage = "none";
+					tipIcon.style.visibility = "hidden"
+				}
+				Tooltip.iconVisible = iconName ? 1 : 0;
 			}
 		};
 				
@@ -252,10 +496,10 @@ if (typeof WowshellPower){
 		var typeList = {
 			1:[g_npcs, "npc", "NPC"],
 			2:[g_objects, "object", "Object"],
-			3:[g_items, "item", "Item"],
-			5:[g_quests, "quest", "Quest"],
-			6:[g_spells, "spell", "Spell"],
-			10:[g_achievement, "achievement", "Achievement"]
+			3:[g_items, "item", "物品"],
+			5:[g_quests, "quest", "任务"],
+			6:[g_spells, "spell", "法术"],
+			10:[g_achievement, "achievement", "成就"]
 		};
 		
 		//监视页面mouse over
@@ -263,12 +507,6 @@ if (typeof WowshellPower){
 			registerEvent(document, "mouseover", monitorCallback);	
 		}		
 		function power_init(){
-			//创建layers层
-			if (!ge("layers")){
-				ce("div", {
-					id: "layers"
-				}, getTagName("body")[0]);
-			}
 			//加载css
 			ce("link", {
 				type: "text/css",
@@ -295,8 +533,8 @@ if (typeof WowshellPower){
 		function monitorCallback(e){
 			e = getInfoFromEvent(e);
 			var target = e._target;
-			var counter = 0;
-			while (target != null && counter < 5 && showTooltip(target, e) == -2323){
+			var counter = 0;			
+			while (target != null && counter < 5 && parseURIInfo(target, e) == -2323){
 				target = target.parentNode;
 				++counter;
 			}
@@ -317,10 +555,10 @@ if (typeof WowshellPower){
 		 * @param {Node} obj
 		 * @param {Event} e
 		 */
-		function showTooltip(obj, e){
+		function parseURIInfo(obj, e){
 			if (obj.nodeName != "A" && obj.nodeName != "AREA"){
 				return -2323;
-			}
+			}			
 			if (!obj.href.length){
 				return
 			}
@@ -431,40 +669,108 @@ if (typeof WowshellPower){
 			}
 			var lnk = getRequestParamId(id, relInfo);
 			currTypeId = type;
-			currId = id;
+			currId = lnk;
 			currDomain = domain;
 			lnkRelationInfo = relInfo;
-			InitTipData(type, id);//init
+			InitTipData(type, lnk);//init
 			var cache = typeList[type][0];
 			if (cache[lnk].status == 3 || cache[lnk].status == 4){
-				
+				showTooltip(cache[lnk][isShowBuff()], cache[lnk]["icon"]);
 			}else{
 				if (cache[lnk].status == 1){
-					
+					showTooltip("数据载入中...")
 				}else{
-					
+					getJsonDataFromRemote(type, id, domain, null, relInfo)
 				}
 			}
 		}
 		/**
 		 * 显示鼠标提示
-		 * @param {String} str
+		 * @param {String} html
 		 * @param {String} icon 显示icon
 		 */
-		function showTooltip(str, icon){
+		function showTooltip(html, icon){
+			if (currentTipObj && currentTipObj._fixTooltip){
+				html = currentTipObj._fixTooltip(html, currTypeId, currId, currentTipObj);
+			}
+			if (!html){
+				html += "此"+typeList[currTypeId][2]+"没用找到:(";
+				icon = "inv_misc_questionmark";				
+			}else{
+				
+			}
 			
+			if (isIconShown == 1){
+				Tooltip.setIcon(null);
+			//	Tooltip.show(currentTipObj, html);
+			}else{
+				Tooltip.setIcon(icon)
+				Tooltip.showAtXY(html, tip_x, tip_y, 15, 15);
+			}
 		}
 		function hideTooltip(){
-			
+			currentTipObj = null;
+			currTypeId = null;
+			Tooltip.hide();
 		}
-		function moveTooltip(){
+		function moveTooltip(e){
 			
 		}
 		/**
 		 * 向服务器请求获取json数据
+		 * @param {Number} typeId 请求数据类型 详细参考typeList
+		 * @param {String} id 请求id 它是通过getRequestParamId生成的
+		 * @param {String} domain 域
+		 * @param {Boolean} 是否需要请求
+		 * @param {Array} url中的rel信息
 		 */
-		function getJsonDataFromRemote(){
-			
+		function getJsonDataFromRemote(typeId, id, domain, isRequest, relInfo){
+			var realId = getRequestParamId(id, relInfo);
+			var cache = typeList[typeId][0];
+			if (cache[realId].status != 0 && cache[realId].status != 2){
+				return
+			}
+			cache[realId].status = 1;
+			if (isRequest){
+				cache[realId].timer = setTimeout(function(){
+					showLoadingTip.apply(this, [typeId, realId, domain]);
+				}, 333)
+			}
+			var str = "";
+			for (var key in relInfo){
+				if (key != "rand" && key != "ench" && key != "gems" && key != "sock"){
+					continue;
+				}
+				if (typeof relInfo[key] == "object"){
+					str += "&"+key+"="+relInfo[key].join(":");
+				}else{
+					if (key == "sock"){
+						str += "&sock";
+					}else{
+						str += "&"+key+"="+relInfo[key];
+					}
+				}
+			}
+			var url = "";
+			url = "http://db.wowshell.com";
+			url += "/"+"ajax/tooltip.php?type="+typeList[typeId][1]+"&id="+id+str+"&comid="+realId;
+			g_ajaxIshRequest(url);
+		}
+		function showLoadingTip(typeId, realId, domain){
+			if (currTypeId == typeId && currId == realId && currDomain == domain){
+				showTooltip("数据载入中...");
+				var cache = typeList[typeId][0];
+				cache[realId].timer = setTimeout(function(){
+					showResponseTip.apply(this, [typeId, realId, domain])
+				},3850);
+			}
+		}
+		function showResponseTip(typeId, realId, domain){
+			var cache = typeList[typeId][0];
+			cache[realId].status = 2;
+			if (currTypeId == typeId && currId == realId && currDomain == domain) {
+				showTooltip("数据加载超时");
+			}
 		}
 		
 		/**
@@ -487,9 +793,12 @@ if (typeof WowshellPower){
 			if (cache[id] == null){
 				cache[id] = {};
 			}
-			if (cache[id].satus == null){
-				cache[id].satus = 0;//初始状态为0
+			if (cache[id].status == null){
+				cache[id].status = 0;//初始状态为0
 			}
+		}
+		function isShowBuff(){
+			return (lnkRelationInfo.buff ? "buff" : "tooltip");
 		}
 		
 		this.register = function(typeId, id, localid, tipData){
@@ -500,9 +809,16 @@ if (typeof WowshellPower){
 				cache[id].timer = null;
 			}
 			copyTable(cache[id], tipData);
-			if (cache[id].satus == 1){
-				
-			}			
+			if (cache[id].status == 1){
+				if (cache[id][isShowBuff()]){
+					cache[id].status = 3
+				}else{
+					cache[id].status = 4
+				}
+			}
+			if (currTypeId == typeId && currId == id && currDomain == "www"){
+				showTooltip(cache[id][isShowBuff()], cache[id].icon);
+			}
 		}
 		this.registerItem = function(id, localid, tip){
 			this.register(3, id, localid, tip);			

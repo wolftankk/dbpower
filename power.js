@@ -306,6 +306,10 @@ if (typeof WowshellPower){
 				ae(Tooltip.icon, ce("div"));
 				ae(root, Tooltip.icon);
 				ae(root, table);
+				var power = ce("div");
+				power.className = "wowshell-tooltip-powered";
+				ae(root, power);
+				Tooltip.logo = power;
 				return root
 			},
 			/**
@@ -548,6 +552,7 @@ if (typeof WowshellPower){
 		var currentTipObj;
 		var isIconShown = 0;
 		var tip_x, tip_y;
+		var isShowWSIcon = true;
 		
 		var g_items = {};
 		var g_npcs = {};
@@ -660,11 +665,31 @@ if (typeof WowshellPower){
 				if (obj.href.indexOf("http://") == 0){
 					urlPath = 1;
 					urlInfo = obj.href.match(/http:\/\/(.+?)?\.?(wowshell|sa20)\.com\/(item|quest|spell|achievement)\/info\.?php\?id=([0-9]+)/);
+					isShowWSIcon = false;
 					if (urlInfo == null){
-						//profile
+						//duowan
+						urlInfo = obj.href.match(/http:\/\/(.+?)?\.?(duowan)\.com\/(wow|zhtw)\/(item|quest|spell|achievement)-([0-9]+)/);
+						if (urlInfo) {
+							urlReqType = 4;
+							urlReqId = 5;
+							isShowWSIcon = true;
+						}else {
+							if (urlInfo == null) {
+								//178 178 http://db.178.com/wow/tw/achievement/1704.html
+								urlInfo = obj.href.match(/http:\/\/(.+?)?\.?(178)\.com\/wow\/(cn|tw)\/(item|quest|spell|achievement)\/([0-9]+)\.html/);
+								if (urlInfo){
+									urlReqType = 4;
+									urlReqId = 5;
+									isShowWSIcon = true;
+								}
+							}else{
+								
+							}
+						}
 					}
 				}else{
 					urlInfo = obj.href.match(/()()\/(item|quest|spell|achievement)\/info\.?php\?id=([0-9]+)/);
+					isShowWSIcon = true
 					if (urlInfo == null){
 						//profile
 					}
@@ -773,6 +798,9 @@ if (typeof WowshellPower){
 			}else{
 				Tooltip.setIcon(icon)
 				Tooltip.showAtXY(html, tip_x, tip_y, 15, 15);
+			}
+			if (Tooltip.logo){
+				Tooltip.logo.style.display = (isShowWSIcon ? "block" : "none");
 			}
 		}
 		function hideTooltip(){

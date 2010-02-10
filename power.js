@@ -66,7 +66,7 @@ if (typeof WowshellPower){
 				e._button = e.which;
 			}else{
 				e._button = e.button;
-				if ($.browser.msie){
+				if (Brower.ie){
 					if (e._button & 4){
 						e._button = 2
 					}else{
@@ -128,6 +128,30 @@ if (typeof WowshellPower){
 				ae(parent, element)
 			}
 			return element
+		}
+		/**
+		 * @param {Node} target
+		 */
+		function ac(target){
+			var x =0, y=0, parent;
+			while (target){
+				x += target.offsetLeft;
+				y += target.offsetTop;
+				parent = target.parentNode;
+				while (parent && parent != target.offsetParent && parent.offsetParent){
+					if (parent.scrollLeft || parent.scrollTop){
+						x -= (parent.scrollLeft | 0);
+						y -= (parent.scrollTop | 0);
+						break;
+					}
+					parent = parent.parentNode;
+				}
+				target = target.offsetParent;
+			}
+			return {
+				"x" : x,
+				"y" : y
+			}
 		}
 		/**
 		 * 递归方式复制
@@ -312,9 +336,7 @@ if (typeof WowshellPower){
 				}
 			},
 			fixSafe:function(){},
-			append:function(){
-				
-			},
+			append:function(){},
 			prepare:function(){
 				if (Tooltip.tooltip){
 					return;
@@ -419,7 +441,6 @@ if (typeof WowshellPower){
 						posY = Math.max(scrollY, relheight - tipTableHeight);
 					}
 				}
-
 				if (Tooltip.iconVisible){
 					if (oldPosX >= posX - 48 && oldPosX <= posX && oldPosY >= posY-4 && oldPosY <= posY + 48){
 						posY -= 48 - (oldPosY - posY);
@@ -433,10 +454,41 @@ if (typeof WowshellPower){
 				}
 			},
 			show:function(target, html, fixWidth, fixHeight, className){
-				
+				if (Tooltip.disabled){
+					return;
+				}
+				if (!fixWidth || fixWidth < 1){
+					fixWidth = 1
+				}
+				if (!fixHeight || fixHeight < 1){
+					fixHeight = 1
+				}
+				if (className){
+					html = '<span class="'+className+'">'+html+"</span>";
+				}
+				var pos = ac(target);
+				Tooltip.prepare();
+				Tooltip.set(html);
+				Tooltip.move(pos.x, pos.y, target.offsetWidth, target.offsetHeight, fixWidth, fixHeight)
 			},
-			showAtCursor:function(){
-				
+			showAtCursor:function(target, html, fixWidth, fixHeight, className){
+				if (Tooltip.disabled){
+					return
+				}
+				if (!fixWidth || fixWidth< 1){
+					fixWidth = 1;
+				}		
+				if (!fixHeight || fixHeight < 1){
+					fixHeight = 1;
+				}		
+				if (className){
+					html = '<span class="' + className + '">' + html + "</span>";
+				}
+				target = getInfoFromEvent(target)
+				var pos = getCursorPos(target)
+				Tooltip.prepare();
+				Tooltip.set(html);
+				Tooltip.move(pos.x, pos.y, 0, 0, fixWidth, fixHeight);
 			},
 			showAtXY:function(html, posX, posY, fixWidth, fixHeight){
 				if (Tooltip.disabled){
@@ -446,8 +498,19 @@ if (typeof WowshellPower){
 				Tooltip.set(html);
 				Tooltip.move(posX, posY, 0, 0, fixWidth, fixHeight);
 			},
-			cursorUpdate:function(){
-				
+			cursorUpdate:function(that, fixWidth, fixHeight){
+				if (Tooltip.disabled || !Tooltip.tooltip){
+					return
+				}
+				if (!fixWidth || fixWidth < 10){
+					fixWidth = 10;
+				}
+				if (!fixHeight || fixHeight < 10){
+					fixHeight = 10;
+				}
+				that = getInfoFromEvent(that)
+				var pos = getCursorPos(that)
+				Tooltip.move(pos.x, pos.y, 0, 0, fixWidth, fixHeight);
 			},
 			hide:function(){
 				if (Tooltip.tooltip){
@@ -511,20 +574,20 @@ if (typeof WowshellPower){
 			ce("link", {
 				type: "text/css",
 				rel: "stylesheet",
-				href: "http://dev.wowshell.com/widgets/power_base.css"
+				href: "http://db.wowshell.com/widgets/power_base.css"
 			}, head);
 			if (Brower.ie6){
 				ce("link", {
 					type: "text/css",
 					rel: "stylesheet",
-					href: "http://dev.wowshell.com/widgets/power_base_ie6.css"
+					href: "http://db.wowshell.com/widgets/power_base_ie6.css"
 				}, head);
 			}
 			if (Brower.ie7){
 				ce("link", {
 					type: "text/css",
 					rel: "stylesheet",
-					href: "http://dev.wowshell.com/widgets/power_base_ie7.css"
+					href: "http://db.wowshell.com/widgets/power_base_ie7.css"
 				}, head);
 			}
 			monitorMouseOver();
@@ -645,7 +708,7 @@ if (typeof WowshellPower){
 				isIconShown = ((obj.parentNode.className.indexOf("icon") == 0 && obj.parentNode.nodeName == "DIV") ? 1 : 0);
 				if (!obj.onmouseout){
 					if (isIconShown == 0){
-						//obj.onmousemove = ;
+						obj.onmousemove = moveTooltip;
 					}
 					obj.onmouseout = hideTooltip;
 				}
@@ -694,15 +757,19 @@ if (typeof WowshellPower){
 				html = currentTipObj._fixTooltip(html, currTypeId, currId, currentTipObj);
 			}
 			if (!html){
-				html += "此"+typeList[currTypeId][2]+"没用找到:(";
+				html += "此"+typeList[currTypeId][2]+"没有找到:(";
 				icon = "inv_misc_questionmark";				
 			}else{
-				
-			}
-			
+				if (!lnkRelationInfo){
+					if (lnkRelationInfo.pcs && lnkRelationInfo.pcs.length){}
+					if (lnkRelationInfo.c){}
+					if (lnkRelationInfo.lvl){}
+					if (lnkRelationInfo.who && lnkRelationInfo.when){}
+				}
+			}			
 			if (isIconShown == 1){
 				Tooltip.setIcon(null);
-			//	Tooltip.show(currentTipObj, html);
+				Tooltip.show(currentTipObj, html);
 			}else{
 				Tooltip.setIcon(icon)
 				Tooltip.showAtXY(html, tip_x, tip_y, 15, 15);
@@ -714,7 +781,9 @@ if (typeof WowshellPower){
 			Tooltip.hide();
 		}
 		function moveTooltip(e){
-			
+			e = getInfoFromEvent(e);
+			getPosInfo(e);
+			Tooltip.move(tip_x, tip_y, 0, 0, 15, 15)
 		}
 		/**
 		 * 向服务器请求获取json数据
@@ -731,7 +800,7 @@ if (typeof WowshellPower){
 				return
 			}
 			cache[realId].status = 1;
-			if (isRequest){
+			if (!isRequest){
 				cache[realId].timer = setTimeout(function(){
 					showLoadingTip.apply(this, [typeId, realId, domain]);
 				}, 333)
@@ -757,7 +826,7 @@ if (typeof WowshellPower){
 			g_ajaxIshRequest(url);
 		}
 		function showLoadingTip(typeId, realId, domain){
-			if (currTypeId == typeId && currId == realId && currDomain == domain){
+			if (currTypeId == typeId && currId == realId && currDomain == domain){				
 				showTooltip("数据载入中...");
 				var cache = typeList[typeId][0];
 				cache[realId].timer = setTimeout(function(){
@@ -771,8 +840,7 @@ if (typeof WowshellPower){
 			if (currTypeId == typeId && currId == realId && currDomain == domain) {
 				showTooltip("数据加载超时");
 			}
-		}
-		
+		}		
 		/**
 		 * 获取请求参数id 比如2345r2g35,2
 		 * @param {String} id
@@ -780,8 +848,7 @@ if (typeof WowshellPower){
 		 */
 		function getRequestParamId(id, relInfo){
 			return id + (relInfo.rank ? "r" + relInfo.rank : "") + (relInfo.ench ? "e" + relInfo.ench : "") + (relInfo.gems ? "g" + relInfo.gems.join(",") : "") + (relInfo.sock ? "s" : "");
-		}
-		
+		}		
 		/**
 		 * 初始化提示数据
 		 * @param {String} typeId
@@ -831,8 +898,7 @@ if (typeof WowshellPower){
 		}
 		this.registerAchievement = function(id, localid, tip){
 			this.register(10, id, localid, tip);	
-		}
-				
+		}				
 		//init
 		power_init();
 	}
